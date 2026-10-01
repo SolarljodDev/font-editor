@@ -225,11 +225,8 @@ fileInput.addEventListener('change', async e=>{
 
 const hasLocalFonts = 'queryLocalFonts' in window; // Chromium only
 if (!hasLocalFonts) btnPickLocal.style.display = 'none';
-// GDI's classic family model only fits Regular/Bold/Italic/BoldItalic, so
-// Windows commonly registers every other weight as its own separate "family"
-// (e.g. "Inter Medium", "Inter SemiBold") instead of a style within "Inter".
-// Strip a trailing weight/style word to recover the shared base name and
-// group everything that actually belongs to one typeface back together.
+// GDI registers every non-Regular/Bold weight as its own "family" ("Inter Medium"): strip a trailing weight/style word
+// to regroup them under one typeface name.
 const TRAILING_STYLE_WORDS = /(\s+(Thin|Hairline|ExtraLight|UltraLight|Light|Regular|Normal|Book|Text|Medium|SemiBold|DemiBold|Bold|ExtraBold|UltraBold|Black|Heavy|Italic|Oblique))+\s*$/i;
 function canonicalFamily(fam){
   const stripped = fam.replace(TRAILING_STYLE_WORDS, '').trim();
@@ -298,10 +295,7 @@ async function loadSelectedLocalFont(){
   checkVariableWeight();
 }
 
-// Picks a specific wght instance by constructing a dedicated FontFace with an
-// explicit variationSettings descriptor — the one mechanism variable-font
-// instancing is reliably guaranteed to respect (unlike leaving it to
-// automatic font-weight matching, which is what silently did nothing before).
+// Picks a wght instance via a dedicated FontFace with variationSettings — automatic font-weight matching silently did nothing.
 async function getFamilyForWeight(weight){
   if (!fontBuffer) return fontFamily;
   const key = String(weight);
@@ -314,9 +308,7 @@ async function getFamilyForWeight(weight){
   return fam;
 }
 
-// Renders straight into the W x H cell at (baseline+yNudge, xNudge) in one
-// pass — no separate shift-then-crop step, so ink near the edges never gets
-// clipped (unlike the DWIN tool with a large V shift).
+// Renders straight into the W x H cell in one pass (no shift-then-crop), so ink near the edges is never clipped, unlike the DWIN tool with a large V shift.
 async function rasterizeChar(ch, W, H, baseline, fontPx, xNudge, yNudge, threshold, weight){
   const family = await getFamilyForWeight(weight||400);
   const cw = W*SS, chh = H*SS;
@@ -416,18 +408,14 @@ function bitsEqual(a,b){
   return true;
 }
 
-// Renders the same probe glyph at weight 100 vs 900 and compares pixels —
-// the only way to actually know whether this font's wght axis does anything,
-// instead of assuming it works because the FontFace loaded without error.
+// Renders a probe glyph at weight 100 vs 900 and compares pixels: the only way to know whether the wght axis does anything.
 async function checkVariableWeight(){
   const light = await rasterizeChar('H', 64,64, 51,48, 0,0, 128, 100);
   const boldW = await rasterizeChar('H', 64,64, 51,48, 0,0, 128, 900);
   const variable = !bitsEqual(light, boldW);
   weightField.style.display = variable ? '' : 'none';
-  // wght axis covers weight selection on its own — the pick-a-static-style
-  // list (Regular/Bold/…) is then unreliable for this font (named instances
-  // of a variable font commonly all resolve to the same underlying bytes).
-  // Only that list hides; family selection stays available to switch fonts.
+  // With a wght axis the static-style list is unreliable (named instances of a variable font often resolve to the same bytes),
+  // so only that list hides; family selection stays.
   if (variable) localStyleWrap.style.display = 'none';
   updateFileName();
 }
@@ -667,10 +655,8 @@ renderBlockList();
 renderTestGlyph();
 updateFileName();
 
-// ---- DGUS+ integration ----
-// Opened from DGUS+ (http://127.0.0.1:<port>/fonts/generator.html) the font can be written
-// straight into the open project's DWIN_SET under a chosen font ID. Standalone (file:// or
-// any other host) /api/project doesn't answer and this block stays hidden.
+// Opened from DGUS+ (/fonts/generator.html) the font can be saved straight into the open project's DWIN_SET under a font ID;
+// standalone /api/project doesn't answer and this block stays hidden.
 const dgusBox = document.getElementById('dgusBox');
 const dgusId = document.getElementById('dgusId');
 const dgusReplace = document.getElementById('dgusReplace');
@@ -833,7 +819,6 @@ btnSaveProject.addEventListener('click', async ()=>{
 });
 dgusRefresh();
 
-// ---- job mode (DGUS+ MCP) ----
 // generator.html#job=<id>: DGUS+ runs this page headless for the MCP tools generate_font /
 // preview_font. Parameters and the font file come from /api/job/<id>; the .bin, a preview
 // image and suspicious glyphs go back to /api/job/<id>/result. Same rasterizer as manual use.
